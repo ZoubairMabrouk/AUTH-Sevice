@@ -33,4 +33,12 @@
     <PackageReference Include="xunit" Version="2.9.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EditorConfigFiles Remove="D:\a-PFE-ING\project\AUTH-Sevice\.editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="D:\a-PFE-ING\project\AUTH-Sevice\.editorconfig" />
+  </ItemGroup>
+
 </Project>

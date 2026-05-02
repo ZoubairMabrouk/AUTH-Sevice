@@ -1,0 +1,110 @@
+name: Auth Service CI/CD
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  IMAGE_NAME: auth-service
+  REGISTRY: docker.io
+
+jobs:
+
+  # ─────────────────────────────────────────────
+  # 🧪 Build & Test
+  # ─────────────────────────────────────────────
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: 📦 Restore dependencies
+        run: dotnet restore
+
+      - name: 🏗️ Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: 🧪 Run tests
+        run: dotnet test --no-build --verbosity normal
+
+  # ─────────────────────────────────────────────
+  # 🔐 Security Scan (Dependencies)
+  # ─────────────────────────────────────────────
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: build-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 🔍 Run Trivy FS scan
+        uses: aquasecurity/trivy-action@v0.20.0
+        with:
+          scan-type: 'fs'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+  # ─────────────────────────────────────────────
+  # 🐳 Build & Push Docker Image
+  # ─────────────────────────────────────────────
+  docker:
+    runs-on: ubuntu-latest
+    needs: security-scan
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔑 Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: 🏗️ Build & Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/auth-service:latest
+            ${{ secrets.DOCKER_USERNAME }}/auth-service:${{ github.sha }}
+
+  # ─────────────────────────────────────────────
+  # 🚀 Deploy (VPS via SSH)
+  # ─────────────────────────────────────────────
+  deploy:
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: 🚀 Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            docker pull ${{ secrets.DOCKER_USERNAME }}/auth-service:latest
+            
+            docker stop auth-service || true
+            docker rm auth-service || true
+
+            docker run -d \
+              --name auth-service \
+              -p 5001:8080 \
+              --network platform-network \
+              -e ASPNETCORE_ENVIRONMENT=Production \
+              -e ConnectionStrings__DefaultConnection="${{ secrets.DB_CONNECTION }}" \
+              -e Jwt__SecretKey="${{ secrets.JWT_SECRET }}" \
+              ${{ secrets.DOCKER_USERNAME }}/auth-service:latest
