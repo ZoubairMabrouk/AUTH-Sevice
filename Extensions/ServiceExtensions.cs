@@ -46,7 +46,7 @@ namespace AUTH_Sevice.Extensions
                     b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.GetName().Name)));
 
             // Repositories
-            services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<IUserRepository, UserRepositoryADMIN>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<IAuditLogRepository, AuditLogRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();

@@ -10,7 +10,7 @@ namespace AUTH_Sevice.Controllers
 {
 
     [ApiController]
-    [Route("api/users")]
+    [Route("api/user")]
     [Authorize]
     [Produces("application/json")]
     public class UsersController(ISender mediator, ICurrentUserService currentUser) : ControllerBase

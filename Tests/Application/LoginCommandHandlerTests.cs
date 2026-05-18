@@ -7,6 +7,7 @@ using AUTH_Sevice.Infrastructure.Services;
 using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
+using AUTH_Sevice.Infrastructure.Repositories;
 
 namespace AUTH_Sevice.Tests.Application
 {
@@ -81,7 +82,7 @@ namespace AUTH_Sevice.Tests.Application
             var user = CreateTestUser();
             _userRepoMock.Setup(r => r.GetByEmailAsync("test@example.com", default)).ReturnsAsync(user);
             _passwordHasherMock.Setup(h => h.Verify("wrongpassword", user.PasswordHash)).Returns(false);
-            _userRepoMock.Setup(r => r.Update(user));
+            //_userRepoMock.Setup(r => r.UpdateAsync(user)).ReturnsAsync(user);
             _auditRepoMock.Setup(a => a.AddAsync(It.IsAny<AuditLog>(), default)).Returns(Task.CompletedTask);
             _uowMock.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
 

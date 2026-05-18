@@ -2,6 +2,7 @@
 using AUTH_Sevice.Application.DTOs;
 using AUTH_Sevice.Domain.Entities;
 using AUTH_Sevice.Domain.Exceptions;
+using AUTH_Sevice.Infrastructure.Repositories;
 using AUTH_Sevice.Infrastructure.Services;
 using MediatR;
 using Microsoft.Extensions.Options;
@@ -40,7 +41,7 @@ public class LoginCommandHandler(
             if (!passwordHasher.Verify(request.Password, user.PasswordHash))
             {
                 user.RecordFailedLogin();
-                userRepo.Update(user);
+                userRepo.UpdateAsync(user);
                 await LogAudit(user.Id, "LOGIN_FAILED", request.IpAddress, false, "Bad password", ct);
                 await uow.SaveChangesAsync(ct);
                 throw new InvalidCredentialsException();
@@ -55,7 +56,7 @@ public class LoginCommandHandler(
                 jwtSettings.Value.RefreshTokenExpiryDays);
 
             user.AddRefreshToken(refreshToken);
-            userRepo.Update(user);
+            userRepo.UpdateAsync(user);
             await refreshTokenRepo.AddAsync(refreshToken, ct);
             await LogAudit(user.Id, "LOGIN_SUCCESS", request.IpAddress, true, null, ct);
             await uow.SaveChangesAsync(ct);

@@ -1,0 +1,25 @@
+version: "3.9"
+
+# Utiliser avec: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+services:
+  auth-service:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    read_only: false  # Permettre l'écriture en dev
+    resources:
+      limits:
+        cpus: "2"
+        memory: 1G
+      reservations:
+        cpus: "1"
+        memory: 512M
+
+  sqlserver:
+    ports:
+      - "1433:1433"  # Exposer pour les outils de management
+    environment:
+      - MSSQL_PID=Developer  # Edition Developer (gratuit)
+
+  redis:
+    command: redis-server --appendonly yes  # Sans authentification en dev

@@ -4,6 +4,7 @@ using AUTH_Sevice.Domain.Entities.Enums;
 using AUTH_Sevice.Domain.Entities;
 using AUTH_Sevice.Domain.Exceptions;
 using MediatR;
+using AUTH_Sevice.Infrastructure.Repositories;
 
 namespace AUTH_Sevice.Application.Auth.Commands
 {
@@ -28,7 +29,7 @@ namespace AUTH_Sevice.Application.Auth.Commands
             var passwordHash = passwordHasher.Hash(request.Password);
             var user = User.Create(request.Email, passwordHash, request.FirstName, request.LastName, UserRole.User);
 
-            await userRepo.AddAsync(user, ct);
+            await userRepo.CreateAsync(user, ct);
             await uow.SaveChangesAsync(ct);
 
             return new UserDto(user.Id, user.Email, user.FirstName, user.LastName,

@@ -2,58 +2,141 @@ version: "3.9"
 
 services:
   auth-service:
-    image: zoubairmabrouk/auth-service:latest
+    image: zoubairmabrouk/auth-service:latest  # Utiliser une version spécifique, pas latest
     container_name: auth-service
+    hostname: auth-service
     ports:
       - "5001:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=AuthServiceDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=AuthServiceDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=True;Connection Timeout=30;
       - Jwt__SecretKey=${JWT_SECRET_KEY}
       - Jwt__Issuer=auth-service
       - Jwt__Audience=platform-services
+      - Jwt__ExpirationMinutes=60
     depends_on:
       sqlserver:
         condition: service_healthy
       redis:
         condition: service_healthy
-    restart: unless-stopped
+    restart: on-failure:5
     networks:
       - platform-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    resources:
+      limits:
+        cpus: "1"
+        memory: 512M
+      reservations:
+        cpus: "0.5"
+        memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=auth-service"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/logs
 
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: auth-sqlserver
+    hostname: sqlserver
     environment:
       - ACCEPT_EULA=Y
       - SA_PASSWORD=${SA_PASSWORD}
+      - MSSQL_PID=Express
+      - MSSQL_MEMORY_LIMIT_MB=2048
     volumes:
       - sqlserver_data:/var/opt/mssql
+      - sqlserver_log:/var/opt/mssql/backup
     ports:
       - "1433:1433"
     healthcheck:
       test: [
         "CMD-SHELL",
-        "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P $$SA_PASSWORD -Q 'SELECT 1'"
+        "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P $$SA_PASSWORD -Q 'SELECT 1' -C"
       ]
-      interval: 10s
-      retries: 10
-    restart: unless-stopped
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: on-failure:5
     networks:
       - platform-network
+    resources:
+      limits:
+        cpus: "2"
+        memory: 3G
+      reservations:
+        cpus: "1"
+        memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=sqlserver"
+    security_opt:
+      - no-new-privileges:true
+    environment_file:
+      - .env.production
 
   redis:
     image: redis:7-alpine
     container_name: auth-redis
+    hostname: redis
     ports:
       - "6380:6379"
-    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    restart: on-failure:5
     networks:
       - platform-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    resources:
+      limits:
+        cpus: "0.5"
+        memory: 512M
+      reservations:
+        cpus: "0.25"
+        memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=redis"
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   sqlserver_data:
+    driver: local
+  sqlserver_log:
+    driver: local
+  redis_data:
+    driver: local
 
 networks:
   platform-network:
     driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1450

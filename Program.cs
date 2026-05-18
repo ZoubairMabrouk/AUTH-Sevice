@@ -3,6 +3,7 @@ using AUTH_Sevice.Infrastructure.Data;
 using AUTH_Sevice.Middlewares;
 using Serilog;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,9 +27,23 @@ builder.Services
     .AddSwaggerDocumentation()
     .AddControllers();
 
+builder.Services.AddCors(opt =>
+    opt.AddDefaultPolicy(p =>
+        p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod())
+);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>();
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("fixed", opt =>
+    {
+        opt.PermitLimit = 100; // nombre de requêtes autorisées
+        opt.Window = TimeSpan.FromMinutes(1);
+
+    });
+});
 
 // ─── App pipeline ──────────────────────────────────────────────────────────
 var app = builder.Build();
@@ -40,13 +55,8 @@ if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
 
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "AUTH-Service v1");
-        c.RoutePrefix = string.Empty;
-    });
 }
+
 
 app.UseSerilogRequestLogging(opts =>
 {
@@ -56,12 +66,19 @@ app.UseSerilogRequestLogging(opts =>
         ctx.Set("ClientIP", httpContext.Connection.RemoteIpAddress?.ToString());
     };
 });
+app.UseSwagger();
 
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "AUTH-Service v1");
+    c.RoutePrefix = string.Empty;
+});
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.UseCors();
 app.MapHealthChecks("/health");
 
 try

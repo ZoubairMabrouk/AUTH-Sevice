@@ -1,6 +1,7 @@
 ﻿using AUTH_Sevice.Application.Common.Intefaces;
 using AUTH_Sevice.Application.DTOs;
 using AUTH_Sevice.Domain.Exceptions;
+using AUTH_Sevice.Infrastructure.Repositories;
 using MediatR;
 namespace AUTH_Sevice.Application
 {

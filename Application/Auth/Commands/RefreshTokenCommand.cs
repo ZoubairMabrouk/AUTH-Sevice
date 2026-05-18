@@ -2,6 +2,7 @@
 using AUTH_Sevice.Application.DTOs;
 using AUTH_Sevice.Domain.Entities;
 using AUTH_Sevice.Domain.Exceptions;
+using AUTH_Sevice.Infrastructure.Repositories;
 using AUTH_Sevice.Infrastructure.Services;
 using MediatR;
 using Microsoft.Extensions.Options;

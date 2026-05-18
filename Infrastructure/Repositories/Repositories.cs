@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AUTH_Sevice.Infrastructure.Repositories
 {
-    public class UserRepository(AppDbContext context) : IUserRepository
+    public class UserRepository(AppDbContext context)
     {
         public async Task<User?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
             await context.Users
